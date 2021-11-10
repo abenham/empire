@@ -1,0 +1,103 @@
+	FUNCTION MOVCOR
+	1	(IFO,ITURN,Z6,MOVE,IH1,AGGR,OWN1,ECityLocationPLOR,DIR,DEST,ORIG,HMACityLocation)
+C
+	INCLUDE "EMPIRE.INC/NOLIST"
+C 
+C CHECK FOR IMPOSSIBLE CONDITION FOR MOVE
+C
+	IF ((.NOT.PASS).OR.(IABS(MOVE).LE.8)) GOTO 100
+	CALL LIB$GERASE_PAGE(1,1)
+	TYPE 999,OWN1,Z6,MOVE,IFO
+999	FORMAT(1X,A1," @ ",I4," ATTEMPTED ",I," WITH IFO ",I4)
+C 
+100	MOVE=IABS(MOVE)
+C 
+	IF (ITURN.EQ.1) BLAH=0			'**
+	IF (BLAH.LT.0) MOVE=ICORR(I2+RND(3)-1)	'**
+C 
+C CHECK FOR SOMETHING TO ATTACK, OR, SOMETHING TO RUN FROM
+C BLAH.LT.0: RUN
+C BLAH.GE.0: ATTACK
+C
+	DO 200 ICityLocation=1,8
+	I1=ICityLocation
+	LOC=Z6+MoveOffset(I1+1)			'**
+	AB=ReferenceMap(LOC)
+	IF (MasterMap(LOC).NE.".") GOTO 200
+	IF ((AB.LT."B").OR.(AB.GT."T")) GOTO 200	'IF SH/PL, LOOK
+	BLAH=ATTACK(OWN1,AB,IH1,AGGR)
+	IF (BLAH.GE.0) GOTO 1200			'** ATTACK IT
+	GOTO 300				'RUN FROM IT
+200	CONTINUE
+	I1=0				'NOTHING OF INTEREST HERE
+	GOTO 800
+C 
+C SELECT AN APPROPRIATE ESCAPE MOVE
+C
+300	IS=RND(3)
+	DO 600 IN=1,8
+	I2=IN
+	IF ((IS.EQ.0).OR.(IN.GT.3)) GOTO 500
+	IF (IS.NE.1) GOTO 400
+	IF (IN.EQ.1) I2=2
+	IF (IN.EQ.2) I2=3
+	IF (IN.EQ.3) I2=1
+	GOTO 500
+400	IF (IN.EQ.1) I2=3
+	IF (IN.EQ.2) I2=1
+	IF (IN.EQ.3) I2=2
+500	I=MoveOffset(ISCAPE(I2,I1)+1)+Z6		'**
+	IF ((ReferenceMap(I).EQ.".").AND.(ORDER(I).EQ.0)) GOTO 700
+600	CONTINUE
+	I1=0
+	GOTO 800
+700	I1=ISCAPE(I2,I1)
+	IF (MasterMap(I).NE.".") CALL STROUT("ISCAPE ERROR",1)
+	GOTO 1200
+C 
+800	IF (ECityLocationPLOR.EQ.0) GOTO 1000		'**
+	ECityLocationPMACityLocation=0
+	DO 900 ICityLocation=MOVE,MOVE+7
+	I1=ICORR(ICityLocation)
+	LOC1=Z6+MoveOffset(I1+1)			'**
+	IF (ORDER(LOC1).NE.0) GOTO 900
+	IF (ReferenceMap(LOC1).NE.".") GOTO 900
+	IF (DEST.GT.0) THEN
+	  IF (IDIST(Z6,DEST).LT.IDIST(LOC1,DEST)) GOTO 900
+	ENDIF
+	NECityLocationP=0
+	IF (EMAP(LOC1+MoveOffset(I1+1)).EQ." ") NECityLocationP=1		'**
+	IF (EMAP(LOC1+MoveOffset(ICORR(I1-1)+1)).EQ." ") NECityLocationP=NECityLocationP+1	'**
+	IF (EMAP(LOC1+MoveOffset(ICORR(I1+1)+1)).EQ." ") NECityLocationP=NECityLocationP+1	'**
+	IF (EMAP(LOC1+MoveOffset(ICORR(I1+2)+1)).EQ." ") NECityLocationP=NECityLocationP+1	'**
+	IF (EMAP(LOC1+MoveOffset(ICORR(I1-2)+1)).EQ." ") NECityLocationP=NECityLocationP+1	'**
+	IF (NECityLocationP.EQ.5) GOTO 1200
+	IF (NECityLocationP.LE.ECityLocationPMACityLocation) GOTO 900
+	ECityLocationPMACityLocation=NECityLocationP
+	I11=I1
+900	CONTINUE
+	I1=0
+	IF (ECityLocationPMACityLocation.EQ.0) GOTO 1000
+	I1=I11
+	GOTO 1200
+1000	I2=MOVE
+	LOC1=Z6+MoveOffset(MOVE+1)			'**
+	AB=ReferenceMap(LOC1)
+	IF (LOC1.NE.ORIG) THEN
+	  IF (((AB.EQ.".").OR.(AB.EQ."X")).AND.(ORDER(LOC1).EQ.0)) GOTO 1200
+	ENDIF
+	M=MOVE
+	IA=ICORR(M-DIR*3)
+	IF (ReferenceMap(Z6+MoveOffset(IA+1)).NE.".") M=IA	'**
+	DO 1100 I=0,7*DIR,DIR
+	I2=ICORR(M+I)
+	I3=Z6+MoveOffset(I2+1)			'**
+	IF ((ReferenceMap(I3).EQ.".").AND.(ORDER(I3).EQ.0).AND.(I3.NE.ORIG)) GOTO 1200
+1100	CONTINUE
+	I2=0
+1200	IF (I1.NE.0) I2=I1
+	IF (ReferenceMap(Z6+MoveOffset(MOVE+1)).NE."X") MOVE=I2	'**
+	IF ((ReferenceMap(Z6).EQ."X").AND.(IH1.LT.HMACityLocation)) MOVE=0
+	MOVCOR=MOVE
+	RETURN
+	END
